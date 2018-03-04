@@ -1,5 +1,7 @@
 package com.esliceu;
 
+import com.esliceu.extractor.QueryExtractor;
+import com.esliceu.extractor.QueryWrapper;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +13,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -47,116 +48,101 @@ public class QueryCorrectorApplication {
     }
 
     @Bean
-    CommandLineRunner runner(QueryParser queryParser) {
+    CommandLineRunner runner(QueryParser queryParser, QueryExtractor queryExtractor) {
         return args -> {
 
             Map<Integer, Set<String>> queryRepo = new HashMap<>();
 
-            File folder = new File("/home/xavi/bbdd");
 
-            List<Result> resultsPractica = queryParser.correct("practica.sql");
-
-            for (File subFolder : folder.listFiles()) {
-
-                log.info("STUDENT: " + subFolder.getName());
-
-                if (subFolder.isDirectory()) {
-
-                    for (File sqlFile : subFolder.listFiles()) {
-
-                        if (isValidFile(sqlFile)) {
-
-                            List<Result> results = queryParser.correct(sqlFile);
-
-                            if (results.size() != resultsPractica.size()) log.error("ERROR: Número de querys erroni");
-                            else log.info("Numero de querys: " + resultsPractica.size());
+            List<Result> resultsPractica = queryParser.correctQueries(queryExtractor.extractSolutionQueries());
 
 
-                            int correct = 0;
-                            for (int i = 0; i < results.size(); i++) {
+            List<QueryWrapper> queryWrapperList = queryExtractor.extractQueries();
 
-                                Result resultPractica = resultsPractica.get(i);
-                                Result result = results.get(i);
+            for (QueryWrapper queryWrapper : queryWrapperList) {
 
-                                log.info("-------------------------------------" + i + "-------------------------------------");
+                log.info("STUDENT: " + queryWrapper.getStudent());
 
-                                if (!result.compareTo(resultsPractica.get(i))) {
-                                    log.error("ERROR #" + i);
-                                    log.error(result.getQuery());
-                                    log.error("ERROR MsG: "+  result.getErrorMessage());
-                                } else {
+                List<Result> results = queryParser.correctQueries(queryWrapper.getQueries());
+
+                if (results.size() != resultsPractica.size()) log.error("ERROR: Número de querys erroni");
+                else log.info("Numero de querys: " + resultsPractica.size());
 
 
+                int correct = 0;
+                for (int i = 0; i < results.size(); i++) {
 
-                                    if (!ResultStatus.PARSE_ERROR.equals(result.getStatus())) {
+                    Result resultPractica = resultsPractica.get(i);
+                    Result result = results.get(i);
 
-                                        if (resultPractica.getTables().size() >= result.getTables().size()
-                                            && result.getTables().containsAll(resultPractica.getTables())) {
-                                            correct++;
-                                            //save query to repo
-                                            queryRepo.computeIfAbsent(i, k -> new HashSet<>());
-                                            queryRepo.get(i).add(result.getQuery());
+                    log.info("-------------------------------------" + i + "-------------------------------------");
 
-
-                                        } else {
-                                            log.error("DIFERENT TABLES #"+i );
-                                            log.error("TEACHER-> " + resultPractica.getTables().size());
-                                            resultPractica.getTables().stream().forEach(t-> log.error(t));
-                                            log.error("STUDENT-> " +result.getTables().size());
-                                            result.getTables().stream().forEach(t-> log.error(t));
-                                        }
-
-                                        Set<String> differentFields = resultPractica.getFields().stream()
-                                                .filter(s -> !result.getFields().contains(s) )
-                                                .filter(s -> !s.contains(".") || !result.getFields().contains(s.split("[.]")[1]))
-                                                .collect(Collectors.toSet());
+                    if (!result.compareTo(resultsPractica.get(i))) {
+                        log.error("ERROR #" + i);
+                        log.error(result.getQuery());
+                        log.error("ERROR MsG: " + result.getErrorMessage());
+                    } else {
 
 
-                                        if (differentFields.size() > 0) {
-                                            log.warn("DIFERENT FIELDS: #" + i);
-                                            differentFields.stream().forEach(field -> log.warn(field));
+                        if (!ResultStatus.PARSE_ERROR.equals(result.getStatus())) {
 
-                                            log.warn("STUDENT FIELDS: #" + i);
-                                            result.getFields().stream().forEach(field -> log.warn(field));
-                                            log.warn("TEACH FIELDS:");
-                                            resultPractica.getFields().stream().forEach(field -> log.warn(field));
-                                        }
-
-
-                                    } else {
-
-                                        log.warn("*** PARSE ERROR #" + i + " ********** ");
-                                        log.warn(result.getParseErrorMessage());
-
-                                    }
+                            if (resultPractica.getTables().size() >= result.getTables().size()
+                                    && result.getTables().containsAll(resultPractica.getTables())) {
+                                correct++;
+                                //save query to repo
+                                queryRepo.computeIfAbsent(i, k -> new HashSet<>());
+                                queryRepo.get(i).add(result.getQuery());
 
 
-                                }
-                                log.info("---------------------------------------------------------------------------");
+                            } else {
+                                log.error("DIFERENT TABLES #" + i);
+                                log.error("TEACHER-> " + resultPractica.getTables().size());
+                                resultPractica.getTables().stream().forEach(t -> log.error(t));
+                                log.error("STUDENT-> " + result.getTables().size());
+                                result.getTables().stream().forEach(t -> log.error(t));
                             }
 
-                            if (results.size()>0){
-                                int nota = correct * 100 / resultsPractica.size();
+                            Set<String> differentFields = resultPractica.getFields().stream()
+                                    .filter(s -> !result.getFields().contains(s))
+                                    .filter(s -> !s.contains(".") || !result.getFields().contains(s.split("[.]")[1]))
+                                    .collect(Collectors.toSet());
 
-                                log.info("NOTA FINAL: " + nota);
 
+                            if (differentFields.size() > 0) {
+                                log.warn("DIFERENT FIELDS: #" + i);
+                                differentFields.stream().forEach(field -> log.warn(field));
+
+                                log.warn("STUDENT FIELDS: #" + i);
+                                result.getFields().stream().forEach(field -> log.warn(field));
+                                log.warn("TEACH FIELDS:");
+                                resultPractica.getFields().stream().forEach(field -> log.warn(field));
                             }
 
-                            log.info("#################################################################");
-                            log.info("#################################################################");
 
+                        } else {
 
-
+                            log.warn("*** PARSE ERROR #" + i + " ********** ");
+                            log.warn(result.getParseErrorMessage());
 
                         }
 
+
                     }
+                    log.info("---------------------------------------------------------------------------");
+                }
+
+                if (results.size() > 0) {
+                    int nota = correct * 100 / resultsPractica.size();
+
+                    log.info("NOTA FINAL: " + nota);
 
                 }
+
+                log.info("#################################################################");
+                log.info("#################################################################");
             }
 
-
-            queryRepo.keySet().stream().forEach(i ->{
+            queryRepo.keySet().stream().forEach(i -> {
                 Path newFilePath = Paths.get("/home/xavi/bbdd/results/" + i + ".out");
                 try {
                     Path path = Files.createFile(newFilePath);
@@ -176,19 +162,7 @@ public class QueryCorrectorApplication {
             });
 
 
-
         };
-    }
-
-
-
-    private boolean isValidFile(File sqlFile) {
-
-        String name = sqlFile.getName();
-
-        return sqlFile.isFile() &&
-                (FilenameUtils.getExtension(name).equals("sql") ||
-                        FilenameUtils.getExtension(name).equals("txt"));
     }
 
 

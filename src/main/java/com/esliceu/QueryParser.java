@@ -1,5 +1,6 @@
 package com.esliceu;
 
+import com.esliceu.extractor.Query;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.parser.ParseException;
@@ -35,94 +36,9 @@ public class QueryParser {
 
     @Autowired
     private DataSource dataSource;
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    private String getFileContent(File file) {
-        StringBuilder data = new StringBuilder();
-        try {
-            Stream<String> lines = Files.lines(Paths.get(file.getAbsolutePath()));
-            lines.forEach(line -> data.append(line).append("\n"));
-            lines.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return data.toString();
-    }
-
-    private String getFileContent(String fileName) {
-        StringBuilder data = new StringBuilder();
-        try {
-            Path path = Paths.get(getClass().getClassLoader()
-                    .getResource(fileName).toURI());
 
 
-            Stream<String> lines = Files.lines(path);
-            lines.forEach(line -> data.append(line).append("\n"));
-            lines.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return data.toString();
-    }
-
-
-    private List<String> extractQueries(String fileContent) {
-
-        String[] lines = fileContent.split("\n");
-
-        String[] filteredLines =  Arrays.stream(lines).filter(line->
-                (line.contains("#@") ||
-                 line.contains("#$") ||
-                 !line.contains("#"))
-                        && line.trim().length() > 0
-                ).toArray(String[]::new);
-
-        List<String> queries = new ArrayList<>();
-
-        boolean readMode = false;
-
-        StringBuilder query = new StringBuilder();
-
-        for (String line : filteredLines) {
-
-            if (line.contains("#@")) {
-                readMode = true;
-                continue;
-            }
-
-            if (line.contains("#$")) {
-                readMode = false;
-                queries.add(query.toString());
-                query = new StringBuilder();
-                continue;
-            }
-
-            if (readMode) {
-                query.append(line + " ");
-            }
-        }
-
-        return queries;
-    }
-
-    public List<Result> correct(File sqlFile) throws SQLException {
-
-        List<String> queries = extractQueries(getFileContent(sqlFile));
-        return correctQueries(queries);
-
-    }
-
-    public List<Result> correct(String filename) throws SQLException {
-        List<String> queries = extractQueries(getFileContent(filename));
-
-        return correctQueries(queries);
-    }
-
-
-    private List<Result> correctQueries(List<String> queries) throws SQLException {
+    public List<Result> correctQueries(List<Query> queries) throws SQLException {
 
 
         queries.stream().forEach(query -> System.out.println(query));
@@ -133,7 +49,7 @@ public class QueryParser {
 
         List<Result> results = new ArrayList<>();
 
-        for (String query : queries){
+        for (Query query : queries){
 
             System.out.println("#####" + query);
 
@@ -141,10 +57,10 @@ public class QueryParser {
             Statement statement = null;
 
             try{
-                query = cleanQuery(query);
-                result.setQuery(query);
+                query.setSentence(cleanQuery(query.getSentence()));
+                result.setQuery(query.getSentence());
 
-                statement = CCJSqlParserUtil.parse(query);
+                statement = CCJSqlParserUtil.parse(query.getSentence());
 
 
                 Select selectStatement = (Select) statement;
@@ -183,7 +99,7 @@ public class QueryParser {
 
             try{
 
-                PreparedStatement preparedStatement = connection.prepareStatement(query);
+                PreparedStatement preparedStatement = connection.prepareStatement(query.getSentence());
 
                 ResultSet rs = preparedStatement.executeQuery();
 
