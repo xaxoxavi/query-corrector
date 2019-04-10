@@ -1,6 +1,5 @@
 package com.esliceu.extractor;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**

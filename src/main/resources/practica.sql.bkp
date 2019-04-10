@@ -1,0 +1,73 @@
+#<query>
+#[1]-[]######################################################################################################################
+#Esbrina quin es l'ofici del empleat que es troba a lo més alt de la jerarquia empresarial
+#@
+SELECT ofici FROM EMP where CAP is NULL;
+#$
+#</query>
+
+#<query>
+#[2]-[]#########################################################################################################################
+#Mostrar el codi de client, el telèfon del clients, tots els atributs de les comandes que ha fet el client
+#que siguin o de tipus A o de tipus B així com el codi i la descripció dels productes que hi ha a la comanda,
+#durant l'any 1987; RESTRICCIO: NO POTS USAR 'ORs'
+#@
+SELECT client.CLIENT_COD, comanda.*, client.TELEFON,producte.PROD_NUM, producte.DESCRIPCIO FROM CLIENT client
+  INNER JOIN COMANDA comanda ON client.CLIENT_COD = comanda.CLIENT_COD
+  INNER JOIN DETALL detall ON detall.COM_NUM = comanda.COM_NUM
+  INNER JOIN PRODUCTE producte ON producte.PROD_NUM = detall.PROD_NUM
+WHERE comanda.COM_TIPUS in ('A','B') and year(comanda.DATA_TRAMESA) =  1987;
+#$
+#</query>
+
+#<query>
+#[3]-[]##########################################################################################################################
+#Treu el nom d'aquells clients que no han fet cap comanda encara.
+#@
+SELECT CLIENT.NOM FROM CLIENT
+  LEFT JOIN COMANDA on CLIENT.CLIENT_COD = COMANDA.CLIENT_COD
+where COMANDA.CLIENT_COD is null;
+#$
+#</query>
+
+#<query>
+#[4]-[]##########################################################################################################################
+#Després utilitza aquest mateixa query combinada
+# amb una subquery per tal de treuere els empleats que els representen (CLIENT.REPR_COD).
+#@
+SELECT emp_no, cognom, ofici, cap, data_alta, salari, comissio, dept_no
+FROM EMP empresa
+WHERE empresa.EMP_NO IN (
+  SELECT REPR_COD FROM CLIENT
+    LEFT JOIN COMANDA on CLIENT.CLIENT_COD = COMANDA.CLIENT_COD
+  where COMANDA.CLIENT_COD is null);
+#$
+#</query>
+
+#<query>
+#[5]-[]##########################################################################################################################
+# Treu el tipus de comanda que te més comandes i el número de comandes que té.
+#RESTRICCIO: Hauras d'utilitzar una subquery!
+#@
+select com_tipus,max(num) from (
+                                 select com_tipus, count(com_num) as num from COMANDA
+                                 where com_tipus is not null
+                                 group by com_tipus) as n;
+#$
+#</query>
+
+#<query>
+#[6]-[]#########################################################################################################################
+# Volem acomiadiar als treballadors poc productius.
+#Treu el número d'empleat i el salari d'aquells empleats que els seus clients NO han realitzat cap venta, i a més a més,
+# han cobrat comissio.
+#@
+SELECT empleat.EMP_NO, empleat.SALARI FROM CLIENT
+  LEFT JOIN COMANDA ON CLIENT.CLIENT_COD = COMANDA.CLIENT_COD
+  INNER JOIN EMP empleat ON empleat.EMP_NO = CLIENT.REPR_COD
+WHERE COMANDA.CLIENT_COD IS NULL
+      AND empleat.COMISSIO > 0;
+#$
+#</query>
+
+

@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -24,6 +26,7 @@ import java.util.stream.Stream;
 @Component
 public class FileQueryExtractor implements QueryExtractor {
 
+    public static final String ORDER_REGEX = ".[\\[.\\]].*";
     private Logger log = LoggerFactory.getLogger(FileQueryExtractor.class);
 
     @Value("${students.queries.path}")
@@ -115,6 +118,7 @@ public class FileQueryExtractor implements QueryExtractor {
 
         String[] filteredLines =  Arrays.stream(lines).filter(line->
                 (line.contains("#@") ||
+                        line.matches(ORDER_REGEX) ||
                         line.contains("#$") ||
                         !line.contains("#"))
                         && line.trim().length() > 0
@@ -126,7 +130,19 @@ public class FileQueryExtractor implements QueryExtractor {
 
         StringBuilder sentenceBuilder = new StringBuilder();
 
+        int queryOrder = -1;
+
         for (String line : filteredLines) {
+
+            if (line.matches(ORDER_REGEX)){
+                Pattern pattern = Pattern.compile("\\[(\\d* ?)");
+                Matcher matcher = pattern.matcher(line);
+                if (matcher.find()){
+                    queryOrder = Integer.parseInt(matcher.group(1));
+                }
+            }
+
+
 
             if (line.contains("#@")) {
                 readMode = true;
@@ -137,7 +153,7 @@ public class FileQueryExtractor implements QueryExtractor {
                 readMode = false;
                 String sentence = sentenceBuilder.toString();
                 if (queryCleaner != null) sentence = queryCleaner.apply(sentence);
-                Query query = new Query(sentence);
+                Query query = new Query(sentence,queryOrder);
                 queries.add(query);
                 sentenceBuilder = new StringBuilder();
                 continue;

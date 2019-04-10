@@ -1,5 +1,6 @@
 package com.esliceu;
 
+import java.sql.ResultSet;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -8,19 +9,22 @@ import java.util.Set;
  */
 public class Result {
 
-    private int rowNumber;
+    private Integer rowNumber = 0;
     private Set<String> tables = new HashSet<>();
     private Set<String> fields = new HashSet<>();
     private String query;
+
     private String errorMessage;
     private ResultStatus status;
     private String parseErrorMessage;
+    private Set<String> resultRows;
+    private int order;
 
-    public void setRowNumber(int rowNumber) {
+    public void setRowNumber(Integer rowNumber) {
         this.rowNumber = rowNumber;
     }
 
-    public int getRowNumber() {
+    public Integer getRowNumber() {
         return rowNumber;
     }
 
@@ -28,12 +32,6 @@ public class Result {
         this.tables.add(table);
     }
 
-    public boolean compareTo(Result result) {
-        if (this.getRowNumber() != result.getRowNumber()) return false;
-
-
-        return true;
-    }
 
     public Set<String> getTables() {
         return tables;
@@ -78,5 +76,23 @@ public class Result {
 
     public void setParseErrorMessage(String parseErrorMessage) {
         this.parseErrorMessage = parseErrorMessage;
+    }
+
+
+
+    public void setResultRows(Set<String> resultRows) {
+        this.resultRows = resultRows;
+    }
+
+    public Set<String> getResultRows() {
+        return resultRows;
+    }
+
+    public void setOrder(int order) {
+        this.order = order;
+    }
+
+    public int getOrder() {
+        return order;
     }
 }

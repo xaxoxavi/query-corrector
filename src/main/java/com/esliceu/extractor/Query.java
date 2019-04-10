@@ -6,9 +6,17 @@ package com.esliceu.extractor;
 public class Query {
 
     private String sentence;
+    private Integer order;
+
+
 
     public Query(String sentence) {
         setSentence(sentence);
+    }
+
+    public Query(String sentence, Integer queryOrder) {
+        this.order = queryOrder;
+        this.sentence = sentence;
     }
 
     public String getSentence() {
@@ -21,5 +29,13 @@ public class Query {
 
     public String toString(){
         return sentence;
+    }
+
+    public Integer getOrder() {
+        return order;
+    }
+
+    public void setOrder(int order) {
+        this.order = order;
     }
 }

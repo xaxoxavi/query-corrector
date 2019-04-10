@@ -1,4 +1,4 @@
-package com.esliceu;
+package com.esliceu.parser;
 
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.util.TablesNamesFinder;
